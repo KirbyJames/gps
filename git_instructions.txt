@@ -1,0 +1,38 @@
+git_instructions.txt
+====================
+
+First time only: In appropriate directory
+
+    git init
+    
+Create .gitignore text file which lists files that should not be included in git repository
+
+Add files to list to be added
+
+    git add *.pl *.pm *.xlsx   etc.
+    
+Commit files 
+
+    git commit -a -m 'corrected latitude bug'
+
+-------------------------------------------------------------
+
+Once repository is established ...
+
+Edit files
+
+Add and Commit files
+
+    git commit -a -m 'added command line options'
+    
+    
+If new files are to be tracked then, after editing    
+
+     git add new_file1 new_file2 ....
+     
+     
+   
+
+    
+    
+    
