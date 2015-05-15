@@ -6,7 +6,8 @@
 #=========================================================================
 #
 #   join two or more GPX files together
-#   optionally removes <time> (date-time) and <ele> (elevation) tags
+#    -d     removes <time> (date-time) tags
+#    -e     removes <ele> (elevation) tags
 #
 
 use Getopt::Long;
@@ -14,10 +15,10 @@ use Getopt::Long;
 use Carp;
 
 my ( $k, $input_gpx_file, $output_gpx_file, $name );
-my ( $n, $gpx_data, $usage, $wpt_data, $n_segment, $segment_data, $trk_pnt );
+my ( $n, $gpx_data, $usage, $wpt_data, $n_segment, $segment_data, $trk_pnt, $elevation, $elevation_tag, $all, $lat, $lon );
 my ( $dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks );
-my ($file_modification_date_time);
-my @input_gpx_files;
+my ( $file_modification_date_time );
+my ( @input_gpx_files );
 
 $usage = << 'USAGE_TEXT';
 USAGE: gpx_join.pl 
@@ -31,10 +32,10 @@ USAGE_TEXT
 #	get, and check, file names from command line
 ##################################################################################
 
-my $include_date_time = '';   # default FALSE = remove
-my $include_elevation = '';   # default FALSE = remove
+my $remove_date_time = '';   # default FLASE = retain
+my $remove_elevation = '';   # default FALSE = retain
 
-GetOptions ("o=s" => \$output_gpx_file,   "i=s{1,}"   => \@input_gpx_files,  "date-time"  => \$include_date_time,  "elevation"  => \$include_elevation  );  
+GetOptions ("o=s" => \$output_gpx_file,   "i=s{1,}"   => \@input_gpx_files,  "date-time"  => \$remove_date_time,  "elevation"  => \$remove_elevation  );  
 
 if ( @input_gpx_files < 1 ) {
     print "ERROR: at least one input_gpx_file must be specified\n";
@@ -48,13 +49,13 @@ if ( length($output_gpx_file) < 1 ){
     exit;
 }
 
-if ( $include_date_time ) {
+if ( !$remove_date_time ) {
     print "retaining date_time tags in tracks\n";
 } else {
     print "removing date_time tags from tracks\n";
 }
 
-if ( $include_elevation ) {
+if ( !$remove_elevation ) {
     print "retaining elevation tags in waypoints and tracks\n";
 } else {
     print "removing elevation tags from waypoints and tracks\n";
@@ -95,9 +96,19 @@ for ( $k = 0 ; $k < @input_gpx_files ; $k++ ) {
      
     print OUT "\n<!-- waypoints: $input_gpx_file: $size bytes [$file_modification_date_time] -->\n\n";
     
-    while ( $gpx_data =~ m!(<wpt.*?</wpt>)!sg ) {        # find each waypoint
+    while ( $gpx_data =~ m!(<wpt.*?</wpt>)!sg ) {                               # find each waypoint
         $wpt_data = $1;
-        if ( !$include_elevation ) {  $wpt_data =~ s!<ele>.*?</ele>!!sg;  }                 # remove elevation info
+        if ( $remove_elevation ) {  
+            $wpt_data =~ s!<ele>.*?</ele>!!sg;                                  # remove elevation info
+        } else {
+            if ( $wpt_data =~ m!(<ele>(.*?)</ele>)!s ) {                        # is elevation present?
+                $elevation = $2;
+                $all = $1;
+                #print "all: $all  elevation: $elevation\n";
+                $elevation_tag = sprintf("<ele>%.1f</ele>", $elevation );       # retain 0.1 m resolution
+                $wpt_data =~ s!$all!$elevation_tag!s;
+            }
+        }
         
         #  lat="47.011523" lon="4.842947">
         
@@ -107,7 +118,7 @@ for ( $k = 0 ; $k < @input_gpx_files ; $k++ ) {
         my $all = $1;
         #print "$lat $lon $all\n";
         
-        my $sub = sprintf(" lat=\"%.5f\" lon=\"%.5f\"\>", $lat, $lon );  # 1 metre accuracy
+        my $sub = sprintf(" lat=\"%.6f\" lon=\"%.6f\"\>", $lat, $lon );         # 0.1 metre accuracy
         $wpt_data =~ s!$all!$sub!s;
                 
         print OUT "$wpt_data\n";
@@ -122,48 +133,58 @@ print OUT "  <name>-</name>\n";  # Q: what do we call it?
 
 for ( $k = 0 ; $k < @input_gpx_files ; $k++ ) {
     $input_gpx_file = @input_gpx_files[$k];
-    print "extract segments/tracks from $input_gpx_file: segment: ";
+    print "extract track/segments from $input_gpx_file: segment: ";
     
     $gpx_data = read_file( $input_gpx_file );      ## NO need to do this as have read file already!!!!!!!!!!!!!!
      ( $dev, $ino, $mode, $nlink, $uid, $gid, $rdev, $size, $atime, $mtime, $ctime, $blksize, $blocks ) = stat($input_gpx_file);
     $file_modification_date_time = localtime $mtime;
     
-    print OUT "\n  <!-- segement/tracks: $input_gpx_file: $size bytes [$file_modification_date_time] -->\n";
+    print OUT "\n  <!-- tracks/segment: $input_gpx_file: $size bytes [$file_modification_date_time] -->\n";
 
     $n_segment = 0;
 
     $name = $input_gpx_file;
         
-    while ( $gpx_data =~ m!<trkseg>(.*?)</trkseg>!sg ) {        # find each segment
+    while ( $gpx_data =~ m!<trkseg>(.*?)</trkseg>!sg ) {                        # find each segment
         $segment_data = $1;
         print " $n_segment";
-        print OUT "\n  <!-- segement $n_segment: $input_gpx_file: -->\n\n";
+        print OUT "\n  <!-- start segement $n_segment: $input_gpx_file: -->\n\n";
         
         print OUT "  <trkseg>\n";
     	
         #----   in this segment work through all trkpts 
     
-        while ( $segment_data =~ m!(<trkpt.*?</trkpt>)!sg ) {       # find all data points within this segment
-            $trk_pnt = $1;
-            $trk_pnt =~ s!>\s*<!><!sg;                          # force onto single line
-            if ( !$include_date_time ) {  $trk_pnt =~ s!<time>.*?</time>!!sg; }                # remove date-time info
-            if ( !$include_elevation ) {  $trk_pnt =~ s!<ele>.*?</ele>!!sg;  }                 # remove elevation info
-
+        while ( $segment_data =~ m!(<trkpt.*?</trkpt>)!sg ) {                       # find all data points within this segment
+            $trk_pnt = $1;  
+            $trk_pnt =~ s!>\s*<!><!sg;                                              # force onto single line - ie remove newlines, tabs and spaces
+            if ( $remove_date_time ) {  $trk_pnt =~ s!<time>.*?</time>!!sg; }       # remove date-time info
+            if ( $remove_elevation ) {  
+                $trk_pnt =~ s!<ele>.*?</ele>!!sg;                                   # remove elevation info
+            } else {
+                if ( $trk_pnt =~ m!(<ele>(.*?)</ele>)!s ) {                         # is elevation present?
+                    $elevation = $2;
+                    $all = $1;
+                    $elevation_tag = sprintf("<ele>%.1f</ele>", $elevation );       # retain 0.1 m resolution
+                    $trk_pnt =~ s!$all!$elevation_tag!s;
+                }
+            }
+                    
             #  lat="47.011523" lon="4.842947">
         
             $trk_pnt =~ m!(\slat=\"(.*?)\"\slon=\"(.*?)\"\>)!s;
-            my $lat = $2;
-            my $lon = $3;
-            my $all = $1;
+            $lat = $2;
+            $lon = $3;
+            $all = $1;
             #print "$lat $lon $all\n";
         
-            my $sub = sprintf(" lat=\"%.5f\" lon=\"%.5f\"\>", $lat, $lon );  # 1 metre accuracy
+            my $sub = sprintf(" lat=\"%.6f\" lon=\"%.6f\"\>", $lat, $lon );         # 0.1 metre accuracy
             $trk_pnt =~ s!$all!$sub!s;
 
             print OUT "    $trk_pnt\n";
         }        
     
         print OUT "  </trkseg>\n";
+        print OUT "\n  <!-- end segement $n_segment: $input_gpx_file: -->\n\n";
         $n_segment++;
     }
     print "\n";
