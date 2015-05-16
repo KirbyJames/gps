@@ -6,7 +6,7 @@
 #=========================================================================
 #
 #   join two or more GPX files together
-#    -d     removes <time> (date-time) tags
+#    -t     removes <time> (date-time) tags
 #    -e     removes <ele> (elevation) tags
 #
 
@@ -22,10 +22,10 @@ my ( @input_gpx_files );
 
 $usage = << 'USAGE_TEXT';
 USAGE: gpx_join.pl 
-            [-elevation] 
-            [-date-time] 
-            -i <input_gpx_file_1> <input_gpx_file_2> ....  
-            -o <output_gpx_file>   
+            [-elevation]                                    [removes elevation tags; default = retain]
+            [-time]                                         [removes date-time tags; default = retain]
+            -i <input_gpx_file_1> <input_gpx_file_2> ....   [multiple input files to join]
+            -o <output_gpx_file>                            [output file]
 USAGE_TEXT
 
 ##################################################################################
@@ -35,7 +35,7 @@ USAGE_TEXT
 my $remove_date_time = '';   # default FLASE = retain
 my $remove_elevation = '';   # default FALSE = retain
 
-GetOptions ("o=s" => \$output_gpx_file,   "i=s{1,}"   => \@input_gpx_files,  "date-time"  => \$remove_date_time,  "elevation"  => \$remove_elevation  );  
+GetOptions ("o=s" => \$output_gpx_file,   "i=s{1,}"   => \@input_gpx_files,  "time"  => \$remove_date_time,  "elevation"  => \$remove_elevation  );  
 
 if ( @input_gpx_files < 1 ) {
     print "ERROR: at least one input_gpx_file must be specified\n";
