@@ -1,6 +1,8 @@
 git_instructions.txt
 ====================
 
+http://www.codeproject.com/Articles/457305/Basic-Git-Command-Line-Reference-for-Windows-Users
+
 First time only: In appropriate directory
 
     git init
@@ -19,17 +21,25 @@ Commit files
 
 Once repository is established ...
 
-Edit files
+Edit files ...
 
 Add and Commit files
 
     git commit -a -m 'added command line options'
-    
-    
+        
 If new files are to be tracked then, after editing    
 
-     git add new_file1 new_file2 ....
+    git add new_file1 new_file2 ....
      
+To list files in repository
+
+    git ls-files
+    git ls-tree --full-tree -r HEAD
+        
+To check integrity of repository
+
+    git fsck
+    
      
    
 

@@ -1,0 +1,15 @@
+#  .gitignore
+#
+#   in directory Dropbox/gps/
+#
+
+*.jpg
+*.jpeg
+*.gif
+*.png
+*tmp
+
+tmp*
+
+
+
